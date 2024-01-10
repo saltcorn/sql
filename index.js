@@ -20,7 +20,7 @@ const {
 const { mkTable } = require("@saltcorn/markup");
 const { readState } = require("@saltcorn/data/plugin-helper");
 
-const Handlebars = require("handlebars");
+const _ = require("underscore");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -84,11 +84,14 @@ const run = async (
   const is_sqlite = db.isSQLite;
 
   const phValues = [];
-  (state_parameters || "").split(",").forEach((sp0) => {
-    const sp = sp0.trim();
-    if (typeof state[sp] === "undefined") phValues.push(null);
-    else phValues.push(state[sp]);
-  });
+  (state_parameters || "")
+    .split(",")
+    .filter((s) => s)
+    .forEach((sp0) => {
+      const sp = sp0.trim();
+      if (typeof state[sp] === "undefined") phValues.push(null);
+      else phValues.push(state[sp]);
+    });
 
   const client = is_sqlite ? db : await db.getClient();
   await client.query(`BEGIN;`);
@@ -103,7 +106,11 @@ const run = async (
   if (!is_sqlite) client.release(true);
   switch (output_type) {
     case "HTML":
-      const template = Handlebars.compile(html_code || "");
+      const template = _.template(html_code || "", {
+        evaluate: /\{\{#(.+?)\}\}/g,
+        interpolate: /\{\{([^#].+?)\}\}/g,
+      });
+
       return template({ rows: qres.rows });
 
     case "JSON":

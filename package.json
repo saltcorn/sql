@@ -6,7 +6,7 @@
   "dependencies": {
     "@saltcorn/markup": "^0.6.0",
     "@saltcorn/data": "^0.6.0",
-    "handlebars": "4.7.7"
+    "underscore": "1.13.6"
   },
   "author": "Tom Nielsen",
   "license": "MIT",
