@@ -40,7 +40,7 @@ const configuration_workflow = () =>
                 name: "state_parameters",
                 label: "State parameters",
                 sublabel:
-                  "Comma separated list of state variables from URL querystring to use as SQL query parameters",
+                  "Comma separated list of state variables from URL querystring to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
                 type: "String",
               },
               {
@@ -79,7 +79,7 @@ const run = async (
   viewname,
   { sql, output_type, state_parameters, html_code },
   state,
-  extraArgs
+  { req }
 ) => {
   const is_sqlite = db.isSQLite;
 
@@ -89,7 +89,9 @@ const run = async (
     .filter((s) => s)
     .forEach((sp0) => {
       const sp = sp0.trim();
-      if (typeof state[sp] === "undefined") phValues.push(null);
+      if (sp.startsWith("user.")) {
+        phValues.push(eval_expression(sp, {}, req.user));
+      } else if (typeof state[sp] === "undefined") phValues.push(null);
       else phValues.push(state[sp]);
     });
 
