@@ -35,6 +35,8 @@ const configuration_workflow = () =>
                 label: "SQL",
                 input_type: "code",
                 attributes: { mode: "text/x-sql" },
+                sublabel:
+                  "Refer to state parameters in the order below with <code>$1</code>, <code>$2</code> etc",
               },
               {
                 name: "state_parameters",
@@ -103,7 +105,7 @@ const run = async (
   }
   const qres = await client.query(sql, phValues);
 
-  await client.query(`ROLLBACK`);
+  await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);
   switch (output_type) {
@@ -129,6 +131,7 @@ const run = async (
 module.exports = {
   sc_plugin_api_version: 1,
   plugin_name: "sql",
+  actions: require("./action.js"),
   viewtemplates: [
     {
       name: "SQLView",
