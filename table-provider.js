@@ -125,9 +125,9 @@ const runQuery = async (cfg, where) => {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
   };
   const { tableList, ast } = parser.parse(cfg?.sql, opt);
-  console.log(parser.parse(cfg?.sql, opt));
-  console.log(ast[0]);
-  console.log(ast[0]?.limit?.value);
+  //console.log(parser.parse(cfg?.sql, opt));
+  //console.log(ast[0]);
+  //console.log(ast[0]?.limit?.value);
 
   //console.log(tableList);
 
