@@ -114,7 +114,7 @@ const runQuery = async (cfg, where) => {
 module.exports = {
   "SQL query": {
     configuration_workflow,
-    fields: [],
+    fields: (cfg) => cfg?.columns || [],
     get_table: (cfg) => {
       return {
         getRows: async (where) => {
