@@ -21,6 +21,19 @@ const configuration_workflow = () =>
                 label: "SQL",
                 input_type: "code",
                 attributes: { mode: "text/x-sql" },
+                validator(sql) {
+                  try {
+                    const is_sqlite = db.isSQLite;
+                    const opt = {
+                      database: is_sqlite ? "SQLite" : "PostgreSQL",
+                    };
+                    const pres = parser.parse(sql, opt);
+                    if (!Array.isArray(pres.ast))
+                      return "Not terminated by semicolon?";
+                  } catch (e) {
+                    return e.message;
+                  }
+                },
               },
             ],
           });
