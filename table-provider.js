@@ -146,6 +146,7 @@ const runQuery = async (cfg, where) => {
   const qctx = {};
 
   if (where.forUser) qctx.user = sqlEscapeObject(where.forUser);
+  else qctx.user = null;
 
   const sql = template(qctx);
 
