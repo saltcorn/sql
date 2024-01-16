@@ -61,7 +61,7 @@ const configuration_workflow = (req) =>
             qres.rows?.slice?.(0, 5)
           );
           const theForm = new Form({
-            blurb: pre(code(context.sql)) + tbl,
+            blurb: pre(code(qres.query)) + tbl,
             fields: [
               {
                 input_type: "section_header",
@@ -195,8 +195,10 @@ const runQuery = async (cfg, where) => {
     await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
     await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
-  const qres = await client.query(parser.sqlify(ast, opt), phValues);
 
+  const sqlQ = parser.sqlify(ast, opt);
+  const qres = await client.query(sqlQ, phValues);
+  qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);
