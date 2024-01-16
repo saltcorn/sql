@@ -5,13 +5,14 @@ const Form = require("@saltcorn/data/models/form");
 const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
 const Field = require("@saltcorn/data/models/field");
 const { getState } = require("@saltcorn/data/db/state");
-
+const SqlString = require("sqlstring");
 const { Parser } = require("node-sql-parser");
 const { mkTable } = require("@saltcorn/markup");
 const { pre, code } = require("@saltcorn/markup/tags");
 const parser = new Parser();
+const _ = require("underscore");
 
-const configuration_workflow = () =>
+const configuration_workflow = (req) =>
   new Workflow({
     steps: [
       {
@@ -30,7 +31,13 @@ const configuration_workflow = () =>
                     const opt = {
                       database: is_sqlite ? "SQLite" : "PostgreSQL",
                     };
-                    const pres = parser.parse(sql, opt);
+                    const template = _.template(sql || "", {
+                      evaluate: /\{\{#(.+?)\}\}/g,
+                      interpolate: /\{\{([^#].+?)\}\}/g,
+                    });
+                    const sql1 = template({ user: req.user });
+
+                    const pres = parser.parse(sql1, opt);
                     if (!Array.isArray(pres.ast))
                       return "Not terminated by semicolon?";
                   } catch (e) {
@@ -45,7 +52,7 @@ const configuration_workflow = () =>
       {
         name: "columns",
         form: async (context) => {
-          const qres = await runQuery(context, {});
+          const qres = await runQuery(context, { forUser: req.user });
           const tbl = mkTable(
             qres.fields.map((field) => ({
               label: field.name,
@@ -120,16 +127,28 @@ const dataTypeIdToTypeGuess = (typeid) => {
 };
 
 const runQuery = async (cfg, where) => {
+  const sqlTmpl = cfg?.sql || "";
+  const template = _.template(sqlTmpl || "", {
+    evaluate: /\{\{#(.+?)\}\}/g,
+    interpolate: /\{\{([^#].+?)\}\}/g,
+  });
+
+  const qctx = {};
+  if (where.forUser) {
+    qctx.user = {};
+    Object.keys(where.forUser).forEach((k) => {
+      const escd = SqlString.escape(where.forUser[k]);
+      qctx.user[k] = escd;
+    });
+  }
+  const sql = template(qctx);
+
   const is_sqlite = db.isSQLite;
   const opt = {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
   };
-  const { tableList, ast } = parser.parse(cfg?.sql, opt);
-  //console.log(parser.parse(cfg?.sql, opt));
-  //console.log(ast[0]);
-  //console.log(ast[0]?.limit?.value);
 
-  //console.log(tableList);
+  const { ast } = parser.parse(sql, opt);
 
   const colNames = new Set((cfg?.columns || []).map((c) => c.name));
 
