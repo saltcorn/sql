@@ -132,6 +132,7 @@ module.exports = {
   sc_plugin_api_version: 1,
   plugin_name: "sql",
   actions: require("./action.js"),
+  table_providers: require("./table-provider.js"),
   viewtemplates: [
     {
       name: "SQLView",
