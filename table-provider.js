@@ -126,6 +126,16 @@ const dataTypeIdToTypeGuess = (typeid) => {
   }
 };
 
+const sqlEscapeObject = (o) => {
+  if (typeof o !== "object" || o === null) return SqlString.escape(o);
+  const r = {};
+  Object.entries(o).forEach(([k, v]) => {
+    if (typeof v === "object") r[k] = sqlEscapeObject(v);
+    else r[k] = SqlString.escape(v);
+  });
+  return r;
+};
+
 const runQuery = async (cfg, where) => {
   const sqlTmpl = cfg?.sql || "";
   const template = _.template(sqlTmpl || "", {
@@ -134,13 +144,9 @@ const runQuery = async (cfg, where) => {
   });
 
   const qctx = {};
-  if (where.forUser) {
-    qctx.user = {};
-    Object.keys(where.forUser).forEach((k) => {
-      const escd = SqlString.escape(where.forUser[k]);
-      qctx.user[k] = escd;
-    });
-  }
+
+  if (where.forUser) qctx.user = sqlEscapeObject(where.forUser);
+
   const sql = template(qctx);
 
   const is_sqlite = db.isSQLite;
