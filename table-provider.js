@@ -3,9 +3,12 @@ const { eval_expression } = require("@saltcorn/data/models/expression");
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
 const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
+const Field = require("@saltcorn/data/models/field");
 const { getState } = require("@saltcorn/data/db/state");
 
 const { Parser } = require("node-sql-parser");
+const { mkTable } = require("@saltcorn/markup");
+const { pre, code } = require("@saltcorn/markup/tags");
 const parser = new Parser();
 
 const configuration_workflow = () =>
@@ -42,8 +45,21 @@ const configuration_workflow = () =>
       {
         name: "columns",
         form: async (context) => {
+          const qres = await runQuery(context, {});
+          const tbl = mkTable(
+            qres.fields.map((field) => ({
+              label: field.name,
+              key: field.name,
+            })),
+            qres.rows?.slice?.(0, 5)
+          );
           const theForm = new Form({
+            blurb: pre(code(context.sql)) + tbl,
             fields: [
+              {
+                input_type: "section_header",
+                label: "Column types",
+              },
               new FieldRepeat({
                 name: "columns",
                 fields: [
@@ -70,11 +86,38 @@ const configuration_workflow = () =>
               }),
             ],
           });
+          if (!context.columns || !context.columns.length) {
+            if (!theForm.values) theForm.values = {};
+            theForm.values.columns = qres.fields.map((f) => ({
+              name: f.name,
+              label: Field.nameToLabel(f.name),
+              type: dataTypeIdToTypeGuess(f.dataTypeID),
+            }));
+          }
           return theForm;
         },
       },
     ],
   });
+
+const dataTypeIdToTypeGuess = (typeid) => {
+  switch (typeid) {
+    case 23:
+      return "Integer";
+    case 25:
+      return "String";
+    case 1184:
+      return "Date";
+    case 16:
+      return "Bool";
+    case 701:
+      return "Float";
+    case 3802:
+      return "JSON";
+    default:
+      return "String";
+  }
+};
 
 const runQuery = async (cfg, where) => {
   const is_sqlite = db.isSQLite;
