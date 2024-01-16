@@ -69,7 +69,10 @@ const runQuery = async (cfg, where) => {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
   };
   const { tableList, ast } = parser.parse(cfg?.sql, opt);
-  //console.log(ast[0].where);
+  console.log(parser.parse(cfg?.sql, opt));
+  console.log(ast[0]);
+  console.log(ast[0]?.limit?.value);
+
   //console.log(tableList);
 
   const colNames = new Set((cfg?.columns || []).map((c) => c.name));
@@ -95,6 +98,20 @@ const runQuery = async (cfg, where) => {
         right: newClause,
       };
     }
+  }
+  if (where?.limit && where?.offset) {
+    ast[0].limit = {
+      seperator: "offset",
+      value: [
+        { type: "number", value: where.limit },
+        { type: "number", value: where.offset },
+      ],
+    };
+  } else if (where?.limit) {
+    ast[0].limit = {
+      seperator: "",
+      value: [{ type: "number", value: where.limit }],
+    };
   }
 
   const client = is_sqlite ? db : await db.getClient();
