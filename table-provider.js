@@ -60,6 +60,9 @@ const configuration_workflow = (req) =>
             })),
             qres.rows?.slice?.(0, 5)
           );
+          const pkey_options = getState().type_names.filter(
+            (tnm) => getState().types[tnm]?.primaryKey
+          );
           const theForm = new Form({
             blurb: pre(code(qres.query)) + tbl,
             fields: [
@@ -88,6 +91,12 @@ const configuration_workflow = (req) =>
                     type: "String",
                     required: true,
                     attributes: { options: getState().type_names },
+                  },
+                  {
+                    name: "primary_key",
+                    label: "Primary key",
+                    type: "Bool",
+                    showIf: { type: pkey_options },
                   },
                 ],
               }),
