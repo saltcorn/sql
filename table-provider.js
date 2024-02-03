@@ -96,7 +96,7 @@ const configuration_workflow = (req) =>
                     name: "primary_key",
                     label: "Primary key",
                     type: "Bool",
-                    showIf: { type: pkey_options },
+                    //showIf: { type: pkey_options },
                   },
                 ],
               }),
@@ -172,10 +172,16 @@ const runQuery = async (cfg, where) => {
   const phValues = [];
   for (const k of Object.keys(where)) {
     if (!colNames.has(k)) continue;
+    const sqlCol = (ast[0].columns || []).find((c) => k === c.as);
+    let left = {
+      type: "column_ref",
+      table: sqlCol?.expr?.table,
+      column: db.sqlsanitize(k),
+    };
     const newClause = {
       type: "binary_expr",
       operator: "=",
-      left: { type: "column_ref", table: null, column: db.sqlsanitize(k) },
+      left,
       right: { type: "number", value: "$" + phIndex },
     };
     phIndex += 1;
