@@ -145,7 +145,7 @@ const sqlEscapeObject = (o) => {
   return r;
 };
 
-const runQuery = async (cfg, where) => {
+const runQuery = async (cfg, where, opts) => {
   const sqlTmpl = cfg?.sql || "";
   const template = _.template(sqlTmpl || "", {
     evaluate: /\{\{#(.+?)\}\}/g,
@@ -154,7 +154,9 @@ const runQuery = async (cfg, where) => {
 
   const qctx = {};
 
-  if (where.forUser) qctx.user = sqlEscapeObject(where.forUser);
+  if (opts?.forUser) qctx.user = sqlEscapeObject(opts.forUser);
+  else if (where?.forUser)
+    qctx.user = sqlEscapeObject(where.forUser); //workaround legacy bug
   else qctx.user = null;
 
   const sql = template(qctx);
@@ -233,8 +235,8 @@ module.exports = {
     fields: (cfg) => cfg?.columns || [],
     get_table: (cfg) => {
       return {
-        getRows: async (where) => {
-          const qres = await runQuery(cfg, where);
+        getRows: async (where, opts) => {
+          const qres = await runQuery(cfg, where, opts);
           return qres.rows;
         },
       };
