@@ -142,5 +142,6 @@ module.exports = {
       configuration_workflow,
       run,
     },
+    require("./terminal"),
   ],
 };
