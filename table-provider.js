@@ -4,6 +4,7 @@ const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
 const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
 const Field = require("@saltcorn/data/models/field");
+const Table = require("@saltcorn/data/models/table");
 const { getState } = require("@saltcorn/data/db/state");
 const SqlString = require("sqlstring");
 const { Parser } = require("node-sql-parser");
@@ -63,6 +64,14 @@ const configuration_workflow = (req) =>
           const pkey_options = getState().type_names.filter(
             (tnm) => getState().types[tnm]?.primaryKey
           );
+          const tables = await Table.find({});
+
+          const fkey_opts = [
+            "File",
+            ...tables
+              .filter((t) => !t.provider_name && !t.external)
+              .map((t) => `Key to ${t.name}`),
+          ];
           const theForm = new Form({
             blurb: pre(code(qres.query)) + tbl,
             fields: [
@@ -90,7 +99,9 @@ const configuration_workflow = (req) =>
                     label: "Type",
                     type: "String",
                     required: true,
-                    attributes: { options: getState().type_names },
+                    attributes: {
+                      options: getState().type_names.concat(fkey_opts || []),
+                    },
                   },
                   {
                     name: "primary_key",
