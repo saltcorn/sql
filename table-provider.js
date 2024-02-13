@@ -234,7 +234,6 @@ const runQuery = async (cfg, where, opts) => {
   }
 
   const sqlQ = parser.sqlify(ast, opt);
-  console.log(sqlQ, phValues);
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
