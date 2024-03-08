@@ -195,12 +195,12 @@ const runQuery = async (cfg, where, opts) => {
         };
     const newClause = {
       type: "binary_expr",
-      operator: "=",
+      operator: where[k]?.ilike ? "ILIKE" : "=",
       left,
       right: { type: "number", value: "$" + phIndex },
     };
     phIndex += 1;
-    phValues.push(where[k]);
+    phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
     if (!ast[0].where) ast[0].where = newClause;
     else {
       ast[0].where = {
