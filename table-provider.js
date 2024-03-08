@@ -193,6 +193,15 @@ const runQuery = async (cfg, where, opts) => {
           table: sqlCol?.expr?.table,
           column: db.sqlsanitize(k),
         };
+    if (!sqlCol) {
+      const starCol = (ast[0].columns || []).find((c) => c.type === "star_ref");
+      if (starCol)
+        left = {
+          type: "column_ref",
+          table: starCol?.expr?.table,
+          column: db.sqlsanitize(k),
+        };
+    }
     const newClause = {
       type: "binary_expr",
       operator: where[k]?.ilike ? "ILIKE" : "=",
