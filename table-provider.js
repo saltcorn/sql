@@ -182,17 +182,21 @@ const runQuery = async (cfg, where, opts) => {
   const colNames = new Set((cfg?.columns || []).map((c) => c.name));
   let phIndex = 1;
   const phValues = [];
+  //console.log(ast[0].columns);
   for (const k of Object.keys(where)) {
     if (!colNames.has(k)) continue;
-    const sqlCol = (ast[0].columns || []).find((c) => k === c.as);
+    const sqlCol = (ast[0].columns || []).find(
+      (c) => k === c.as || (!c.as && k === c.expr?.column)
+    );
     const sqlExprCol = (ast[0].columns || []).find((c) => c.expr?.as == k);
     let left = sqlExprCol
       ? { ...sqlExprCol.expr, as: null }
       : {
           type: "column_ref",
           table: sqlCol?.expr?.table,
-          column: db.sqlsanitize(k),
+          column: sqlCol?.expr?.column || db.sqlsanitize(k),
         };
+    //console.log({ k, sqlCol, sqlExprCol });
     if (!sqlCol) {
       const starCol = (ast[0].columns || []).find((c) => c.type === "star_ref");
       if (starCol)
@@ -243,6 +247,7 @@ const runQuery = async (cfg, where, opts) => {
   }
 
   const sqlQ = parser.sqlify(ast, opt);
+  //console.log(sqlQ, phValues);
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
