@@ -133,6 +133,27 @@ module.exports = {
   plugin_name: "sql",
   actions: require("./action.js"),
   table_providers: require("./table-provider.js"),
+  functions: {
+    sqlQuery: {
+      run: async (query, parameters) => {
+        const is_sqlite = db.isSQLite;
+
+        const client = is_sqlite ? db : await db.getClient();
+        await client.query(`BEGIN;`);
+        if (!is_sqlite) {
+          await client.query(
+            `SET LOCAL search_path TO "${db.getTenantSchema()}";`
+          );
+        }
+        const qres = await db.query(query, parameters || []);
+
+        await client.query(`COMMIT;`);
+        return qres;
+      },
+      isAsync: true,
+      description: "Run an SQL query",
+    },
+  },
   viewtemplates: [
     {
       name: "SQLView",
