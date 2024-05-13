@@ -53,7 +53,6 @@ const runPost = async (
   await client.query(`BEGIN;`);
   if (!is_sqlite) {
     await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
-    await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
 
   let sqlResult;
