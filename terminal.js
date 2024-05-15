@@ -59,7 +59,7 @@ const runPost = async (
   try {
     const qres = await client.query(form.values.sql, []);
 
-    await client.query(`ROLLBACK;`);
+    await client.query(`COMMIT;`);
 
     if (!is_sqlite) client.release(true);
     sqlResult = mkTable(

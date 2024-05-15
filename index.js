@@ -144,10 +144,13 @@ module.exports = {
           await client.query(
             `SET LOCAL search_path TO "${db.getTenantSchema()}";`
           );
+          await client.query(
+            `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+          );
         }
         const qres = await db.query(query, parameters || []);
 
-        await client.query(`COMMIT;`);
+        await client.query(`ROLLBACK;`);
         return qres;
       },
       isAsync: true,
