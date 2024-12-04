@@ -232,10 +232,23 @@ const runQuery = async (cfg, where, opts) => {
         { type: "number", value: where.offset },
       ],
     };
+  } else if (opts?.limit && opts?.offset) {
+    ast[0].limit = {
+      seperator: "offset",
+      value: [
+        { type: "number", value: opts.limit },
+        { type: "number", value: opts.offset },
+      ],
+    };
   } else if (where?.limit) {
     ast[0].limit = {
       seperator: "",
       value: [{ type: "number", value: where.limit }],
+    };
+  } else if (opts?.limit) {
+    ast[0].limit = {
+      seperator: "",
+      value: [{ type: "number", value: opts.limit }],
     };
   }
 
@@ -247,7 +260,7 @@ const runQuery = async (cfg, where, opts) => {
   }
 
   const sqlQ = parser.sqlify(ast, opt);
-  //console.log(sqlQ, phValues);
+  console.log({ sqlQ, phValues, opts });
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
