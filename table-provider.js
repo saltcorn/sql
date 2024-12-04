@@ -265,7 +265,22 @@ const runQuery = async (cfg, where, opts) => {
       value: [{ type: "number", value: opts.limit }],
     };
   }
+  //console.log(ast[0]);
+  //console.log(ast[0].orderby[[0]]);
 
+  const orderBy = where?.orderBy || opts?.orderBy;
+  const orderDesc = where?.orderDesc || opts?.orderDesc;
+
+  if (orderBy) {
+    //console.log(orderBy);
+    
+    ast[0].orderby = [
+      {
+        expr: { type: "column_ref", table: null, column: orderBy },
+        type: orderDesc ? "DESC" : "ASC",
+      },
+    ];
+  }
   const client = is_sqlite ? db : await db.getClient();
   await client.query(`BEGIN;`);
   if (!is_sqlite) {
