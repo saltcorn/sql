@@ -185,10 +185,24 @@ const runQuery = async (cfg, where, opts) => {
   //console.log(ast[0].columns);
   for (const k of Object.keys(where)) {
     if (!colNames.has(k)) continue;
-    const sqlCol = (ast[0].columns || []).find(
-      (c) => k === c.as || (!c.as && k === c.expr?.column)
-    );
-    const sqlExprCol = (ast[0].columns || []).find((c) => c.expr?.as == k);
+    const sqlCol =
+      ast[0].columns == "*"
+        ? {
+            type: "expr",
+            expr: { type: "column_ref", table: null, column: k },
+            as: null,
+          }
+        : (ast[0].columns || []).find(
+            (c) => k === c.as || (!c.as && k === c.expr?.column)
+          );
+    const sqlExprCol =
+      ast[0].columns == "*"
+        ? {
+            type: "expr",
+            expr: { type: "column_ref", table: null, column: k },
+            as: null,
+          }
+        : (ast[0].columns || []).find((c) => c.expr?.as == k);
     let left = sqlExprCol
       ? { ...sqlExprCol.expr, as: null }
       : {
