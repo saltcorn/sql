@@ -275,7 +275,11 @@ const runQuery = async (cfg, where, opts) => {
     if (typeof orderBy === "string")
       ast[0].orderby = [
         {
-          expr: { type: "column_ref", table: null, column: orderBy },
+          expr: {
+            type: "column_ref",
+            table: null,
+            column: db.sqlsanitize(orderBy),
+          },
           type: orderDesc ? "DESC" : "ASC",
         },
       ];
@@ -293,7 +297,7 @@ const runQuery = async (cfg, where, opts) => {
               left: {
                 type: "column_ref",
                 table: null,
-                column: field,
+                column: db.sqlsanitize(field),
               },
               right: {
                 type: "number",
