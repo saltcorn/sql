@@ -272,14 +272,41 @@ const runQuery = async (cfg, where, opts) => {
   const orderDesc = where?.orderDesc || opts?.orderDesc;
 
   if (orderBy) {
-    //console.log(orderBy);
-    
-    ast[0].orderby = [
-      {
-        expr: { type: "column_ref", table: null, column: orderBy },
-        type: orderDesc ? "DESC" : "ASC",
-      },
-    ];
+    if (typeof orderBy === "string")
+      ast[0].orderby = [
+        {
+          expr: { type: "column_ref", table: null, column: orderBy },
+          type: orderDesc ? "DESC" : "ASC",
+        },
+      ];
+    else if (orderBy.operator) {
+      const { operator, field, target } = orderBy;
+      const fieldCol = (cfg.columns || []).find((c) => c.name === field);
+      const type = getState().types[fieldCol?.type];
+      const op = type?.distance_operators[operator];
+      if (op?.type === "SqlBinOp") {
+        ast[0].orderby = [
+          {
+            expr: {
+              type: "binary_expr",
+              operator: op.name,
+              left: {
+                type: "column_ref",
+                table: null,
+                column: field,
+              },
+              right: {
+                type: "number",
+                value: "$" + phIndex,
+              },
+            },
+            type: orderDesc ? "DESC" : "ASC",
+          },
+        ];
+        phIndex += 1;
+        phValues.push(target);
+      }
+    }
   }
   const client = is_sqlite ? db : await db.getClient();
   await client.query(`BEGIN;`);
