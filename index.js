@@ -148,7 +148,7 @@ module.exports = {
             `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
           );
         }
-        const qres = await db.query(query, parameters || []);
+        const qres = await client.query(query, parameters || []);
 
         await client.query(`ROLLBACK;`);
         return qres;
