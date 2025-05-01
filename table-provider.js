@@ -203,8 +203,16 @@ const runQuery = async (cfg, where, opts) => {
             as: null,
           }
         : (ast[0].columns || []).find((c) => c.expr?.as == k);
+    const sqlAggrCol = (ast[0].columns || []).find(
+      (c) =>
+        c.expr?.type === "aggr_func" &&
+        c.expr?.name?.toUpperCase() === k.toUpperCase()
+    );
+
     let left = sqlExprCol
       ? { ...sqlExprCol.expr, as: null }
+      : sqlAggrCol
+      ? { ...sqlAggrCol.expr }
       : {
           type: "column_ref",
           table: sqlCol?.expr?.table,
@@ -222,20 +230,32 @@ const runQuery = async (cfg, where, opts) => {
     }
     const newClause = {
       type: "binary_expr",
-      operator: where[k]?.ilike ? "ILIKE" : "=",
+      operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
       left,
       right: { type: "number", value: "$" + phIndex },
     };
     phIndex += 1;
     phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
-    if (!ast[0].where) ast[0].where = newClause;
-    else {
-      ast[0].where = {
-        type: "binary_expr",
-        operator: "AND",
-        left: ast[0].where,
-        right: newClause,
-      };
+    if (!sqlAggrCol) {
+      if (!ast[0].where) ast[0].where = newClause;
+      else {
+        ast[0].where = {
+          type: "binary_expr",
+          operator: "AND",
+          left: ast[0].where,
+          right: newClause,
+        };
+      }
+    } else {
+      if (!ast[0].having) ast[0].having = newClause;
+      else {
+        ast[0].having = {
+          type: "binary_expr",
+          operator: "AND",
+          left: ast[0].having,
+          right: newClause,
+        };
+      }
     }
   }
   if (where?.limit && where?.offset) {
