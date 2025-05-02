@@ -3,6 +3,7 @@ const { eval_expression } = require("@saltcorn/data/models/expression");
 
 module.exports = {
   run_sql_code: {
+    namespace: "Code",
     configFields: [
       {
         name: "sql",
@@ -50,6 +51,7 @@ module.exports = {
       await client.query(`COMMIT;`);
 
       if (!is_sqlite) client.release(true);
+      return qres.rows
     },
   },
 };
