@@ -4,7 +4,7 @@ const { eval_expression } = require("@saltcorn/data/models/expression");
 module.exports = {
   run_sql_code: {
     namespace: "Code",
-    configFields: [
+    configFields: ({ mode }) => [
       {
         name: "sql",
         label: "SQL",
@@ -20,8 +20,25 @@ module.exports = {
           "Comma separated list of row variables to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
         type: "String",
       },
+      ...(mode === "workflow"
+        ? [
+            {
+              label: "Variable",
+              name: "results_variable",
+              class: "validate-identifier",
+              sublabel: "Context variable to write to query results to",
+              type: "String",
+              required: true,
+            },
+          ]
+        : []),
     ],
-    run: async ({ row, configuration: { sql, row_parameters }, user }) => {
+    run: async ({
+      row,
+      configuration: { sql, row_parameters, results_variable },
+      user,
+      mode,
+    }) => {
       const is_sqlite = db.isSQLite;
 
       const phValues = [];
@@ -51,7 +68,9 @@ module.exports = {
       await client.query(`COMMIT;`);
 
       if (!is_sqlite) client.release(true);
-      return qres.rows
+      if (mode === "workflow" && results_variable)
+        return { [results_variable]: qres.rows };
+      else return qres.rows;
     },
   },
 };
