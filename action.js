@@ -20,6 +20,13 @@ module.exports = {
           "Comma separated list of row variables to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
         type: "String",
       },
+      {
+        name: "read_only",
+        label: "Read only",
+        sublabel: "Run the SQL in a read-only transactions",
+        type: "Bool",
+      },
+
       ...(mode === "workflow"
         ? [
             {
@@ -35,7 +42,7 @@ module.exports = {
     ],
     run: async ({
       row,
-      configuration: { sql, row_parameters, results_variable },
+      configuration: { sql, row_parameters, read_only, results_variable },
       user,
       mode,
     }) => {
@@ -59,9 +66,10 @@ module.exports = {
         await client.query(
           `SET LOCAL search_path TO "${db.getTenantSchema()}";`
         );
-        await client.query(
-          `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
-        );
+        if (read_only)
+          await client.query(
+            `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+          );
       }
       const qres = await client.query(sql, phValues);
 
