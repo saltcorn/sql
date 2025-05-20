@@ -96,18 +96,23 @@ const run = async (
       } else if (typeof state[sp] === "undefined") phValues.push(null);
       else phValues.push(state[sp]);
     });
-
-  const client = is_sqlite ? db : await db.getClient();
-  await client.query(`BEGIN;`);
-  if (!is_sqlite) {
-    await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
-    await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
+  let qres, client;
+  try {
+    client = is_sqlite ? db : await db.getClient();
+    await client.query(`BEGIN;`);
+    if (!is_sqlite) {
+      await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+      await client.query(
+        `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+      );
+    }
+    qres = await client.query(sql, phValues);
+  } catch (e) {
+    throw e;
+  } finally {
+    await client.query(`ROLLBACK;`);
+    if (!is_sqlite) client.release(true);
   }
-  const qres = await client.query(sql, phValues);
-
-  await client.query(`ROLLBACK;`);
-
-  if (!is_sqlite) client.release(true);
   switch (output_type) {
     case "HTML":
       const template = _.template(html_code || "", {
