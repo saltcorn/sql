@@ -6,6 +6,9 @@ const View = require("@saltcorn/data/models/view");
 const Trigger = require("@saltcorn/data/models/trigger");
 const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
+const { eval_expression } = require("@saltcorn/data/models/expression");
+const { interpolate } = require("@saltcorn/data/utils");
+
 //const { fieldProperties } = require("./helpers");
 
 class SQLQuerySkill {
@@ -19,10 +22,52 @@ class SQLQuerySkill {
     Object.assign(this, cfg);
   }
 
-  systemPrompt() {
-    const trigger = Trigger.findOne({ name: this.trigger_name });
+  async runQuery({ triggering_row, user }) {
+    const row = triggering_row;
+    const read_only = true;
+    const is_sqlite = db.isSQLite;
 
-    return `${this.trigger_name} tool: ${trigger.description}`;
+    const phValues = [];
+    (this.query_parameters || "")
+      .split(",")
+      .filter((s) => s)
+      .forEach((sp0) => {
+        const sp = sp0.trim();
+        if (sp.startsWith("user.")) {
+          phValues.push(eval_expression(sp, {}, user));
+        } else if (typeof row[sp] === "undefined") phValues.push(null);
+        else phValues.push(row[sp]);
+      });
+
+    const client = is_sqlite ? db : await db.getClient();
+    await client.query(`BEGIN;`);
+    if (!is_sqlite) {
+      await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+      if (read_only)
+        await client.query(
+          `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+        );
+    }
+    const qres = await client.query(this.sql, phValues);
+
+    await client.query(`COMMIT;`);
+
+    if (!is_sqlite) client.release(true);
+
+    if (this.row_format) {
+      return qres.rows
+        .map((r) => interpolate(this.row_format, r, user))
+        .join("\n\n");
+    }
+    return JSON.stringify(qres.rows);
+  }
+
+  async systemPrompt({ triggering_row, user }) {
+    if (this.mode === "Preload into system prompt") {
+      const rows = await this.runQuery({ triggering_row, user });
+      return `${this.add_sys_prompt}: ${rows}`;
+    }
+    return `${this.add_sys_prompt}`;
   }
 
   static async configFields() {
@@ -32,7 +77,7 @@ class SQLQuerySkill {
         label: "Mode",
         type: "String",
         required: true,
-        attributes: { options: ["Tool", "Preload into system prompt"] },
+        attributes: { options: [/*"Tool",*/ "Preload into system prompt"] },
       },
       {
         name: "sql",
@@ -48,6 +93,7 @@ class SQLQuerySkill {
         sublabel:
           "Comma separated list of variables to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
         type: "String",
+        //showIf: { mode: "Tool" },
       },
       {
         name: "add_sys_prompt",
@@ -55,47 +101,15 @@ class SQLQuerySkill {
         type: "String",
         fieldview: "textarea",
       },
+      {
+        name: "row_format",
+        label: "Row format",
+        type: "String",
+        fieldview: "textarea",
+        sublabel:
+          "Format of text to send to LLM, use <code>{{ }}</code> to access row fields. If not set, rows will be sent as JSON",
+      },
     ];
-  }
-
-  provideTools() {
-    let properties = {};
-
-    const trigger = Trigger.findOne({ name: this.trigger_name });
-    if (trigger.table_id) {
-      const table = Table.findOne({ id: trigger.table_id });
-
-      table.fields
-        .filter((f) => !f.primary_key)
-        .forEach((field) => {
-          properties[field.name] = {
-            description: field.label + " " + field.description || "",
-            ...fieldProperties(field),
-          };
-        });
-    }
-    return {
-      type: "function",
-      process: async (row, { req }) => {
-        const result = await trigger.runWithoutRow({ user: req?.user, row });
-        return result;
-      },
-      /*renderToolCall({ phrase }, { req }) {
-        return div({ class: "border border-primary p-2 m-2" }, phrase);
-      },*/
-      renderToolResponse: async (response, { req }) => {
-        return div({ class: "border border-success p-2 m-2" }, response);
-      },
-      function: {
-        name: trigger.name,
-        description: trigger.description,
-        parameters: {
-          type: "object",
-          //required: ["action_javascript_code", "action_name"],
-          properties,
-        },
-      },
-    };
   }
 }
 
