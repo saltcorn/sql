@@ -138,6 +138,9 @@ module.exports = {
   plugin_name: "sql",
   actions: require("./action.js"),
   table_providers: require("./table-provider.js"),
+  exchange: {
+    agent_skills: [require("./agent-skill.js")],
+  },
   functions: {
     sqlQuery: {
       run: async (query, parameters) => {
