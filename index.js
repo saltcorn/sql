@@ -5,6 +5,7 @@ const Table = require("@saltcorn/data/models/table");
 const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
 const Workflow = require("@saltcorn/data/models/workflow");
 const { eval_expression } = require("@saltcorn/data/models/expression");
+const { interpolate } = require("@saltcorn/data/utils");
 const {
   text,
   div,
@@ -115,12 +116,13 @@ const run = async (
   }
   switch (output_type) {
     case "HTML":
-      const template = _.template(html_code || "", {
+      /*const template = _.template(html_code || "", {
         evaluate: /\{\{#(.+?)\}\}/g,
         interpolate: /\{\{([^#].+?)\}\}/g,
       });
-
-      return template({ rows: qres.rows });
+      console.log("template", viewname, state, html_code);*/
+      return interpolate(html_code, { rows: qres.rows }, req.user, `HTML code interpolation in view ${viewname}`)
+      //return template();
 
     case "JSON":
       return `<pre>${JSON.stringify(qres.rows, null, 2)}</pre>`;
