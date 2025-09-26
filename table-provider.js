@@ -46,6 +46,13 @@ const configuration_workflow = (req) =>
                   }
                 },
               },
+              {
+                label: "Ignore where/order",
+                sublabel:
+                  "Always use this SQL directly without attempting to modify it",
+                type: "Bool",
+                name: "ignore_where",
+              },
             ],
           });
         },
@@ -176,161 +183,168 @@ const runQuery = async (cfg, where, opts) => {
   const opt = {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
   };
-
-  const { ast } = parser.parse(sql, opt);
-
-  const colNames = new Set((cfg?.columns || []).map((c) => c.name));
-  let phIndex = 1;
+  let sqlQ;
   const phValues = [];
-  //console.log(ast[0].columns);
-  for (const k of Object.keys(where)) {
-    if (!colNames.has(k)) continue;
-    const sqlCol =
-      ast[0].columns == "*"
-        ? {
-            type: "expr",
-            expr: { type: "column_ref", table: null, column: k },
-            as: null,
-          }
-        : (ast[0].columns || []).find(
-            (c) => k === c.as || (!c.as && k === c.expr?.column)
-          );
-    const sqlExprCol =
-      ast[0].columns == "*"
-        ? {
-            type: "expr",
-            expr: { type: "column_ref", table: null, column: k },
-            as: null,
-          }
-        : (ast[0].columns || []).find((c) => c.expr?.as == k);
-    const sqlAggrCol = (ast[0].columns || []).find(
-      (c) =>
-        c.expr?.type === "aggr_func" &&
-        c.expr?.name?.toUpperCase() === k.toUpperCase()
-    );
+  if (cfg?.ignore_where) {
+    sqlQ = sql;
+  } else {
+    const { ast } = parser.parse(sql, opt);
 
-    let left = sqlExprCol
-      ? { ...sqlExprCol.expr, as: null }
-      : sqlAggrCol
-      ? { ...sqlAggrCol.expr }
-      : {
-          type: "column_ref",
-          table: sqlCol?.expr?.table,
-          column: sqlCol?.expr?.column || db.sqlsanitize(k),
-        };
-    //console.log({ k, sqlCol, sqlExprCol });
-    if (!sqlCol) {
-      const starCol = (ast[0].columns || []).find((c) => c.type === "star_ref");
-      if (starCol)
-        left = {
-          type: "column_ref",
-          table: starCol?.expr?.table,
-          column: db.sqlsanitize(k),
-        };
-    }
-    const newClause = {
-      type: "binary_expr",
-      operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
-      left,
-      right: { type: "number", value: "$" + phIndex },
-    };
-    phIndex += 1;
-    phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
-    if (!sqlAggrCol) {
-      if (!ast[0].where) ast[0].where = newClause;
-      else {
-        ast[0].where = {
-          type: "binary_expr",
-          operator: "AND",
-          left: ast[0].where,
-          right: newClause,
-        };
-      }
-    } else {
-      if (!ast[0].having) ast[0].having = newClause;
-      else {
-        ast[0].having = {
-          type: "binary_expr",
-          operator: "AND",
-          left: ast[0].having,
-          right: newClause,
-        };
-      }
-    }
-  }
-  if (where?.limit && where?.offset) {
-    ast[0].limit = {
-      seperator: "offset",
-      value: [
-        { type: "number", value: where.limit },
-        { type: "number", value: where.offset },
-      ],
-    };
-  } else if (opts?.limit && opts?.offset) {
-    ast[0].limit = {
-      seperator: "offset",
-      value: [
-        { type: "number", value: opts.limit },
-        { type: "number", value: opts.offset },
-      ],
-    };
-  } else if (where?.limit) {
-    ast[0].limit = {
-      seperator: "",
-      value: [{ type: "number", value: where.limit }],
-    };
-  } else if (opts?.limit) {
-    ast[0].limit = {
-      seperator: "",
-      value: [{ type: "number", value: opts.limit }],
-    };
-  }
-  //console.log(ast[0]);
-  //console.log(ast[0].orderby[[0]]);
+    const colNames = new Set((cfg?.columns || []).map((c) => c.name));
+    let phIndex = 1;
+    //console.log(ast[0].columns);
+    for (const k of Object.keys(where)) {
+      if (!colNames.has(k)) continue;
+      const sqlCol =
+        ast[0].columns == "*"
+          ? {
+              type: "expr",
+              expr: { type: "column_ref", table: null, column: k },
+              as: null,
+            }
+          : (ast[0].columns || []).find(
+              (c) => k === c.as || (!c.as && k === c.expr?.column)
+            );
+      const sqlExprCol =
+        ast[0].columns == "*"
+          ? {
+              type: "expr",
+              expr: { type: "column_ref", table: null, column: k },
+              as: null,
+            }
+          : (ast[0].columns || []).find((c) => c.expr?.as == k);
+      const sqlAggrCol = (ast[0].columns || []).find(
+        (c) =>
+          c.expr?.type === "aggr_func" &&
+          c.expr?.name?.toUpperCase() === k.toUpperCase()
+      );
 
-  const orderBy = where?.orderBy || opts?.orderBy;
-  const orderDesc = where?.orderDesc || opts?.orderDesc;
-
-  if (orderBy) {
-    if (typeof orderBy === "string")
-      ast[0].orderby = [
-        {
-          expr: {
+      let left = sqlExprCol
+        ? { ...sqlExprCol.expr, as: null }
+        : sqlAggrCol
+        ? { ...sqlAggrCol.expr }
+        : {
             type: "column_ref",
-            table: null,
-            column: db.sqlsanitize(orderBy),
-          },
-          type: orderDesc ? "DESC" : "ASC",
-        },
-      ];
-    else if (orderBy.operator) {
-      const { operator, field, target } = orderBy;
-      const fieldCol = (cfg.columns || []).find((c) => c.name === field);
-      const type = getState().types[fieldCol?.type];
-      const op = type?.distance_operators[operator];
-      if (op?.type === "SqlBinOp") {
+            table: sqlCol?.expr?.table,
+            column: sqlCol?.expr?.column || db.sqlsanitize(k),
+          };
+      //console.log({ k, sqlCol, sqlExprCol });
+      if (!sqlCol) {
+        const starCol = (ast[0].columns || []).find(
+          (c) => c.type === "star_ref"
+        );
+        if (starCol)
+          left = {
+            type: "column_ref",
+            table: starCol?.expr?.table,
+            column: db.sqlsanitize(k),
+          };
+      }
+      const newClause = {
+        type: "binary_expr",
+        operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
+        left,
+        right: { type: "number", value: "$" + phIndex },
+      };
+      phIndex += 1;
+      phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
+      if (!sqlAggrCol) {
+        if (!ast[0].where) ast[0].where = newClause;
+        else {
+          ast[0].where = {
+            type: "binary_expr",
+            operator: "AND",
+            left: ast[0].where,
+            right: newClause,
+          };
+        }
+      } else {
+        if (!ast[0].having) ast[0].having = newClause;
+        else {
+          ast[0].having = {
+            type: "binary_expr",
+            operator: "AND",
+            left: ast[0].having,
+            right: newClause,
+          };
+        }
+      }
+    }
+    if (where?.limit && where?.offset) {
+      ast[0].limit = {
+        seperator: "offset",
+        value: [
+          { type: "number", value: where.limit },
+          { type: "number", value: where.offset },
+        ],
+      };
+    } else if (opts?.limit && opts?.offset) {
+      ast[0].limit = {
+        seperator: "offset",
+        value: [
+          { type: "number", value: opts.limit },
+          { type: "number", value: opts.offset },
+        ],
+      };
+    } else if (where?.limit) {
+      ast[0].limit = {
+        seperator: "",
+        value: [{ type: "number", value: where.limit }],
+      };
+    } else if (opts?.limit) {
+      ast[0].limit = {
+        seperator: "",
+        value: [{ type: "number", value: opts.limit }],
+      };
+    }
+    //console.log(ast[0]);
+    //console.log(ast[0].orderby[[0]]);
+
+    const orderBy = where?.orderBy || opts?.orderBy;
+    const orderDesc = where?.orderDesc || opts?.orderDesc;
+
+    if (orderBy) {
+      if (typeof orderBy === "string")
         ast[0].orderby = [
           {
             expr: {
-              type: "binary_expr",
-              operator: op.name,
-              left: {
-                type: "column_ref",
-                table: null,
-                column: db.sqlsanitize(field),
-              },
-              right: {
-                type: "number",
-                value: "$" + phIndex,
-              },
+              type: "column_ref",
+              table: null,
+              column: db.sqlsanitize(orderBy),
             },
             type: orderDesc ? "DESC" : "ASC",
           },
         ];
-        phIndex += 1;
-        phValues.push(target);
+      else if (orderBy.operator) {
+        const { operator, field, target } = orderBy;
+        const fieldCol = (cfg.columns || []).find((c) => c.name === field);
+        const type = getState().types[fieldCol?.type];
+        const op = type?.distance_operators[operator];
+        if (op?.type === "SqlBinOp") {
+          ast[0].orderby = [
+            {
+              expr: {
+                type: "binary_expr",
+                operator: op.name,
+                left: {
+                  type: "column_ref",
+                  table: null,
+                  column: db.sqlsanitize(field),
+                },
+                right: {
+                  type: "number",
+                  value: "$" + phIndex,
+                },
+              },
+              type: orderDesc ? "DESC" : "ASC",
+            },
+          ];
+          phIndex += 1;
+          phValues.push(target);
+        }
       }
     }
+    sqlQ = parser.sqlify(ast, opt);
   }
   const client = is_sqlite ? db : await db.getClient();
   await client.query(`BEGIN;`);
@@ -339,8 +353,7 @@ const runQuery = async (cfg, where, opts) => {
     await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
 
-  const sqlQ = parser.sqlify(ast, opt);
-  console.log({ sqlQ, phValues, opts });
+  //console.log({ sqlQ, phValues, opts });
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
