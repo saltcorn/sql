@@ -108,8 +108,6 @@ const run = async (
       );
     }
     qres = await client.query(sql, phValues);
-  } catch (e) {
-    throw e;
   } finally {
     await client.query(`ROLLBACK;`);
     if (!is_sqlite) client.release(true);
@@ -121,8 +119,13 @@ const run = async (
         interpolate: /\{\{([^#].+?)\}\}/g,
       });
       console.log("template", viewname, state, html_code);*/
-      return interpolate(html_code, { rows: qres.rows }, req.user, `HTML code interpolation in view ${viewname}`)
-      //return template();
+      return interpolate(
+        html_code,
+        { rows: qres.rows },
+        req.user,
+        `HTML code interpolation in view ${viewname}`
+      );
+    //return template();
 
     case "JSON":
       return `<pre>${JSON.stringify(qres.rows, null, 2)}</pre>`;
