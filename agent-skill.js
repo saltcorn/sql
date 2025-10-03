@@ -100,16 +100,25 @@ class SQLQuerySkill {
         },
         sublabel: "Add arguments with <code>$1</code>, <code>$2</code> etc",
       },
+
       {
         input_type: "section_header",
         label: " ",
         sublabel:
-          script(`function change_sql_code(e) {console.log(e.target.value)}`) +
-          div(
-            table(thead(tr(th("Name"), th("Description"), th("Type"))), tbody())
+          script(`function change_sql_code(e) {
+            console.log(e.target.value.match(/\\$(\\d+)/))
+            }`) +
+          table(
+            { class: "toolarg" },
+            thead(tr(th("Name"), th("Description"), th("Type"))),
+            tbody()
           ),
         showIf: { mode: "Tool" },
         attributes: { secondColHoriz: true },
+      },
+      {
+        name: "tool_args",
+        input_type: "hidden",
       },
       {
         name: "query_parameters",
