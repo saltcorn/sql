@@ -1,4 +1,14 @@
-const { div, pre, a } = require("@saltcorn/markup/tags");
+const {
+  div,
+  pre,
+  a,
+  script,
+  table,
+  tbody,
+  thead,
+  tr,
+  th,
+} = require("@saltcorn/markup/tags");
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
 const Table = require("@saltcorn/data/models/table");
@@ -77,23 +87,37 @@ class SQLQuerySkill {
         label: "Mode",
         type: "String",
         required: true,
-        attributes: { options: [/*"Tool",*/ "Preload into system prompt"] },
+        attributes: { options: ["Preload into system prompt", "Tool"] },
       },
+
       {
         name: "sql",
         label: "SQL",
         input_type: "code",
-        attributes: { mode: "text/x-sql" },
+        attributes: {
+          mode: "text/x-sql",
+          onChange: "window.change_sql_code?.(event)",
+        },
+        sublabel: "Add arguments with <code>$1</code>, <code>$2</code> etc",
+      },
+      {
+        input_type: "section_header",
+        label: " ",
         sublabel:
-          "Refer to row parameters in the order below with <code>$1</code>, <code>$2</code> etc",
+          script(`function change_sql_code(e) {console.log(e.target.value)}`) +
+          div(
+            table(thead(tr(th("Name"), th("Description"), th("Type"))), tbody())
+          ),
+        showIf: { mode: "Tool" },
+        attributes: { secondColHoriz: true },
       },
       {
         name: "query_parameters",
         label: "Query parameters",
         sublabel:
-          "Comma separated list of variables to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
+          "Comma separated list of variables to use as SQL query parameter values. User variables can be used as <code>user.id</code> etc",
         type: "String",
-        //showIf: { mode: "Tool" },
+        showIf: { mode: "Preload into system prompt" },
       },
       {
         name: "add_sys_prompt",
