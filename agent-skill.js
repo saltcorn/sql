@@ -9,6 +9,7 @@ const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
 const { eval_expression } = require("@saltcorn/data/models/expression");
 const { interpolate } = require("@saltcorn/data/utils");
+const { features } = require("@saltcorn/data/db/state");
 
 //const { fieldProperties } = require("./helpers");
 
@@ -83,7 +84,11 @@ class SQLQuerySkill {
         label: "Mode",
         type: "String",
         required: true,
-        attributes: { options: ["Preload into system prompt", "Tool"] },
+        attributes: {
+          options: features.nested_fieldrepeats
+            ? ["Preload into system prompt", "Tool"]
+            : ["Preload into system prompt"],
+        },
       },
       {
         name: "tool_name",
