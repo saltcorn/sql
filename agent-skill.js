@@ -4,6 +4,7 @@ const Form = require("@saltcorn/data/models/form");
 const Table = require("@saltcorn/data/models/table");
 const View = require("@saltcorn/data/models/view");
 const Trigger = require("@saltcorn/data/models/trigger");
+const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
 const { getState } = require("@saltcorn/data/db/state");
 const db = require("@saltcorn/data/db");
 const { eval_expression } = require("@saltcorn/data/models/expression");
@@ -28,17 +29,22 @@ class SQLQuerySkill {
     const is_sqlite = db.isSQLite;
 
     const phValues = [];
-    (this.query_parameters || "")
-      .split(",")
-      .filter((s) => s)
-      .forEach((sp0) => {
-        const sp = sp0.trim();
-        if (sp.startsWith("user.")) {
-          phValues.push(eval_expression(sp, {}, user));
-        } else if (typeof row[sp] === "undefined") phValues.push(null);
-        else phValues.push(row[sp]);
+    if (this.mode === "Preload into system prompt") {
+      (this.query_parameters || "")
+        .split(",")
+        .filter((s) => s)
+        .forEach((sp0) => {
+          const sp = sp0.trim();
+          if (sp.startsWith("user.")) {
+            phValues.push(eval_expression(sp, {}, user));
+          } else if (typeof row[sp] === "undefined") phValues.push(null);
+          else phValues.push(row[sp]);
+        });
+    } else {
+      (this.toolargs || []).forEach((arg) => {
+        phValues.push(row[arg.name]);
       });
-
+    }
     const client = is_sqlite ? db : await db.getClient();
     await client.query(`BEGIN;`);
     if (!is_sqlite) {
@@ -77,23 +83,60 @@ class SQLQuerySkill {
         label: "Mode",
         type: "String",
         required: true,
-        attributes: { options: [/*"Tool",*/ "Preload into system prompt"] },
+        attributes: { options: ["Preload into system prompt", "Tool"] },
       },
+      {
+        name: "tool_name",
+        label: "Tool name",
+        type: "String",
+        showIf: { mode: "Tool" },
+      },
+      {
+        name: "tool_description",
+        label: "Tool description",
+        type: "String",
+        showIf: { mode: "Tool" },
+      },
+
       {
         name: "sql",
         label: "SQL",
         input_type: "code",
         attributes: { mode: "text/x-sql" },
         sublabel:
-          "Refer to row parameters in the order below with <code>$1</code>, <code>$2</code> etc",
+          "Refer to query parameters with <code>$1</code>, <code>$2</code> etc",
       },
+      { input_type: "section_header", label: "Query parameters" },
+      new FieldRepeat({
+        name: "toolargs",
+        showIf: { mode: "Tool" },
+        fields: [
+          {
+            name: "name",
+            label: "Name",
+            type: "String",
+          },
+          {
+            name: "description",
+            label: "Description",
+            type: "String",
+          },
+          {
+            name: "argtype",
+            label: "Type",
+            type: "String",
+            required: true,
+            attributes: { options: ["string", "number", "integer", "boolean"] },
+          },
+        ],
+      }),
       {
         name: "query_parameters",
         label: "Query parameters",
         sublabel:
           "Comma separated list of variables to use as SQL query parameters. User variables can be used as <code>user.id</code> etc",
         type: "String",
-        //showIf: { mode: "Tool" },
+        showIf: { mode: "Preload into system prompt" },
       },
       {
         name: "add_sys_prompt",
@@ -111,6 +154,38 @@ class SQLQuerySkill {
       },
     ];
   }
+
+  provideTools = () => {
+    if (this.mode === "Preload into system prompt") return null;
+    let properties = {};
+    (this.toolargs || []).forEach((arg) => {
+      properties[arg.name] = {
+        description: arg.description,
+        type: arg.argtype,
+      };
+    });
+    return {
+      type: "function",
+      process: async (row, { req }) => {
+        return await this.runQuery({ triggering_row: row });
+      },
+      /*renderToolCall({ phrase }, { req }) {
+        return div({ class: "border border-primary p-2 m-2" }, phrase);
+      },*/
+      renderToolResponse: async (response, { req }) => {
+        return div({ class: "border border-success p-2 m-2" }, response);
+      },
+      function: {
+        name: this.tool_name,
+        description: this.tool_description,
+        parameters: {
+          type: "object",
+          required: (this.toolargs || []).map((a) => a.name),
+          properties,
+        },
+      },
+    };
+  };
 }
 
 module.exports = SQLQuerySkill;
