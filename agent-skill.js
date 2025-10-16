@@ -95,6 +95,7 @@ class SQLQuerySkill {
         label: "Tool name",
         type: "String",
         showIf: { mode: "Tool" },
+        class: "validate-identifier",
       },
       {
         name: "tool_description",
@@ -133,6 +134,13 @@ class SQLQuerySkill {
             required: true,
             attributes: { options: ["string", "number", "integer", "boolean"] },
           },
+          {
+            name: "options",
+            label: "Options",
+            type: "String",
+            sublabel: "Optional. Comma-separated list of values",
+            showIf: { argtype: "string" },
+          },
         ],
       }),
       {
@@ -168,6 +176,8 @@ class SQLQuerySkill {
         description: arg.description,
         type: arg.argtype,
       };
+      if (arg.options && arg.argtype === "string")
+        properties[arg.name].enum = arg.options.split(",").map((s) => s.trim());
     });
     return {
       type: "function",
