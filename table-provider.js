@@ -163,22 +163,7 @@ const sqlEscapeObject = (o) => {
   return r;
 };
 
-const runQuery = async (cfg, where, opts) => {
-  const sqlTmpl = cfg?.sql || "";
-  const template = _.template(sqlTmpl || "", {
-    evaluate: /\{\{#(.+?)\}\}/g,
-    interpolate: /\{\{([^#].+?)\}\}/g,
-  });
-
-  const qctx = {};
-
-  if (opts?.forUser) qctx.user = sqlEscapeObject(opts.forUser);
-  else if (where?.forUser)
-    qctx.user = sqlEscapeObject(where.forUser); //workaround legacy bug
-  else qctx.user = null;
-
-  const sql = template(qctx);
-
+const getSqlQuery = (sql, cfg, where, opts) => {  
   const is_sqlite = db.isSQLite;
   const opt = {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
@@ -346,6 +331,28 @@ const runQuery = async (cfg, where, opts) => {
     }
     sqlQ = parser.sqlify(ast, opt);
   }
+  return { sqlQ, phValues };
+};
+
+const runQuery = async (cfg, where, opts) => {
+  const sqlTmpl = cfg?.sql || "";
+  const template = _.template(sqlTmpl || "", {
+    evaluate: /\{\{#(.+?)\}\}/g,
+    interpolate: /\{\{([^#].+?)\}\}/g,
+  });
+
+  const qctx = {};
+
+  if (opts?.forUser) qctx.user = sqlEscapeObject(opts.forUser);
+  else if (where?.forUser)
+    qctx.user = sqlEscapeObject(where.forUser); //workaround legacy bug
+  else qctx.user = null;
+
+  const sql = template(qctx);
+  const is_sqlite = db.isSQLite;
+
+  const { sqlQ, phValues } = getSqlQuery(sql, cfg, where, opts);
+
   const client = is_sqlite ? db : await db.getClient();
   await client.query(`BEGIN;`);
   if (!is_sqlite) {
@@ -353,13 +360,48 @@ const runQuery = async (cfg, where, opts) => {
     await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
 
-  //console.log({ sqlQ, phValues, opts });
+  //console.trace({ sqlQ, phValues, opts });
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
   await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);
   return qres;
+};
+
+const countRows = async (cfg, where, opts) => {
+  const sqlTmpl = cfg?.sql || "";
+  const template = _.template(sqlTmpl || "", {
+    evaluate: /\{\{#(.+?)\}\}/g,
+    interpolate: /\{\{([^#].+?)\}\}/g,
+  });
+
+  const qctx = {};
+
+  if (opts?.forUser) qctx.user = sqlEscapeObject(opts.forUser);
+  else if (where?.forUser)
+    qctx.user = sqlEscapeObject(where.forUser); //workaround legacy bug
+  else qctx.user = null;
+
+  const sql = template(qctx);
+  const is_sqlite = db.isSQLite;
+
+  const { sqlQ, phValues } = getSqlQuery(sql, cfg, where, opts);
+
+  const client = is_sqlite ? db : await db.getClient();
+  await client.query(`BEGIN;`);
+  if (!is_sqlite) {
+    await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+    await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
+  }
+
+  //console.trace({ sqlQ, phValues, opts });
+  const qres = await client.query(`select count(*) from (${sqlQ})`, phValues);
+  qres.query = sqlQ;
+  await client.query(`ROLLBACK;`);
+
+  if (!is_sqlite) client.release(true);
+  return qres.rows[0].count;
 };
 
 module.exports = {
@@ -371,6 +413,9 @@ module.exports = {
         getRows: async (where, opts) => {
           const qres = await runQuery(cfg, where, opts);
           return qres.rows;
+        },
+        countRows: async (where, opts) => {
+          return await countRows(cfg, where, opts);
         },
       };
     },
