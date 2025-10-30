@@ -163,7 +163,7 @@ const sqlEscapeObject = (o) => {
   return r;
 };
 
-const getSqlQuery = (sql, cfg, where, opts) => {  
+const getSqlQuery = (sql, cfg, where, opts) => {
   const is_sqlite = db.isSQLite;
   const opt = {
     database: is_sqlite ? "SQLite" : "PostgreSQL",
@@ -174,7 +174,16 @@ const getSqlQuery = (sql, cfg, where, opts) => {
     sqlQ = sql;
   } else {
     const { ast } = parser.parse(sql, opt);
-
+    /*console.log(
+      JSON.stringify(
+        parser.parse(
+          `select * from "users" where "email" ILIKE concat('%',cast($1 as text),'%')`,
+          opt
+        ).ast,
+        null,
+        2
+      )
+    );*/
     const colNames = new Set((cfg?.columns || []).map((c) => c.name));
     let phIndex = 1;
     //console.log(ast[0].columns);
@@ -229,7 +238,45 @@ const getSqlQuery = (sql, cfg, where, opts) => {
         type: "binary_expr",
         operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
         left,
-        right: { type: "number", value: "$" + phIndex },
+        right:
+          where[k]?.ilike && !sqlAggrCol && true
+            ? {
+                type: "function",
+                name: {
+                  name: [
+                    {
+                      type: "default",
+                      value: "concat",
+                    },
+                  ],
+                },
+                args: {
+                  type: "expr_list",
+                  value: [
+                    {
+                      type: "single_quote_string",
+                      value: "%",
+                    },
+                    {
+                      type: "cast",
+                      keyword: "cast",
+                      expr: { type: "number", value: "$" + phIndex },
+                      symbol: "as",
+                      target: [
+                        {
+                          dataType: "TEXT",
+                        },
+                      ],
+                    },
+
+                    {
+                      type: "single_quote_string",
+                      value: "%",
+                    },
+                  ],
+                },
+              }
+            : { type: "number", value: "$" + phIndex },
       };
       phIndex += 1;
       phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
