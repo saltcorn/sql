@@ -187,8 +187,8 @@ const getSqlQuery = (sql, cfg, where, opts) => {
     const colNames = new Set((cfg?.columns || []).map((c) => c.name));
     let phIndex = 1;
     //console.log(ast[0].columns);
-    for (const k of Object.keys(where)) {
-      if (!colNames.has(k)) continue;
+    const proc_k_where = (k, wherek) => {
+      if (!colNames.has(k)) return;
       const sqlCol =
         ast[0].columns == "*"
           ? {
@@ -234,12 +234,24 @@ const getSqlQuery = (sql, cfg, where, opts) => {
             column: db.sqlsanitize(k),
           };
       }
+
       const newClause = {
         type: "binary_expr",
-        operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
+        operator:
+          wherek?.ilike && !sqlAggrCol
+            ? "ILIKE"
+            : wherek?.gt && !sqlAggrCol
+            ? wherek.equal
+              ? ">="
+              : ">"
+            : wherek?.lt && !sqlAggrCol
+            ? wherek.equal
+              ? "<="
+              : "<"
+            : "=",
         left,
         right:
-          where[k]?.ilike && !sqlAggrCol
+          wherek?.ilike && !sqlAggrCol
             ? {
                 type: "function",
                 name: {
@@ -279,7 +291,9 @@ const getSqlQuery = (sql, cfg, where, opts) => {
             : { type: "number", value: "$" + phIndex },
       };
       phIndex += 1;
-      phValues.push(where[k]?.ilike ? where[k]?.ilike : where[k]);
+      phValues.push(
+        wherek?.ilike || wherek?.gt || wherek?.lt || wherek
+      );
       if (!sqlAggrCol) {
         if (!ast[0].where) ast[0].where = newClause;
         else {
@@ -301,6 +315,10 @@ const getSqlQuery = (sql, cfg, where, opts) => {
           };
         }
       }
+    };
+    for (const k of Object.keys(where)) {
+      if (Array.isArray(where[k])) where[k].forEach((w) => proc_k_where(k, w));
+      else proc_k_where(k, where[k]);
     }
     if (where?.limit && where?.offset) {
       ast[0].limit = {
