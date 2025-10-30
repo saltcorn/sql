@@ -239,7 +239,7 @@ const getSqlQuery = (sql, cfg, where, opts) => {
         operator: where[k]?.ilike && !sqlAggrCol ? "ILIKE" : "=",
         left,
         right:
-          where[k]?.ilike && !sqlAggrCol && true
+          where[k]?.ilike && !sqlAggrCol
             ? {
                 type: "function",
                 name: {
