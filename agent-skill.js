@@ -158,6 +158,12 @@ class SQLQuerySkill {
         fieldview: "textarea",
       },
       {
+        name: "display_result",
+        label: "Display result",
+        type: "Bool",
+        sublabel: "Show rows from the query in JSON format",
+      },
+      {
         name: "row_format",
         label: "Row format",
         type: "String",
@@ -187,9 +193,11 @@ class SQLQuerySkill {
       /*renderToolCall({ phrase }, { req }) {
         return div({ class: "border border-primary p-2 m-2" }, phrase);
       },*/
-      renderToolResponse: async (response, { req }) => {
-        return div({ class: "border border-success p-2 m-2" }, response);
-      },
+      renderToolResponse: this.display_result
+        ? async (response, { req }) => {
+            return div({ class: "border border-success p-2 m-2" }, response);
+          }
+        : undefined,
       function: {
         name: this.tool_name,
         description: this.tool_description,
