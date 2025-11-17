@@ -291,9 +291,7 @@ const getSqlQuery = (sql, cfg, where, opts) => {
             : { type: "number", value: "$" + phIndex },
       };
       phIndex += 1;
-      phValues.push(
-        wherek?.ilike || wherek?.gt || wherek?.lt || wherek
-      );
+      phValues.push(wherek?.ilike || wherek?.gt || wherek?.lt || wherek);
       if (!sqlAggrCol) {
         if (!ast[0].where) ast[0].where = newClause;
         else {
@@ -419,15 +417,18 @@ const runQuery = async (cfg, where, opts) => {
   const { sqlQ, phValues } = getSqlQuery(sql, cfg, where, opts);
 
   const client = is_sqlite ? db : await db.getClient();
+  db.sql_log("BEGIN;");
   await client.query(`BEGIN;`);
   if (!is_sqlite) {
+    db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
     await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+    db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
     await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
-
-  //console.trace({ sqlQ, phValues, opts });
+  db.sql_log(sqlQ, phValues);
   const qres = await client.query(sqlQ, phValues);
   qres.query = sqlQ;
+  db.sql_log("ROLLBACK;");
   await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);
@@ -454,15 +455,20 @@ const countRows = async (cfg, where, opts) => {
   const { sqlQ, phValues } = getSqlQuery(sql, cfg, where, opts);
 
   const client = is_sqlite ? db : await db.getClient();
+  db.sql_log("BEGIN;");
   await client.query(`BEGIN;`);
   if (!is_sqlite) {
+    db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
     await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+    db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
     await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
   }
 
   //console.trace({ sqlQ, phValues, opts });
+  db.sql_log(`select count(*) from (${sqlQ})`, phValues);
   const qres = await client.query(`select count(*) from (${sqlQ})`, phValues);
   qres.query = sqlQ;
+  db.sql_log("ROLLBACK;");
   await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);

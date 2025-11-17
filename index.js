@@ -152,17 +152,21 @@ module.exports = {
         const is_sqlite = db.isSQLite;
 
         const client = is_sqlite ? db : await db.getClient();
+        db.sql_log("BEGIN;");
         await client.query(`BEGIN;`);
         if (!is_sqlite) {
+          db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
           await client.query(
             `SET LOCAL search_path TO "${db.getTenantSchema()}";`
           );
+          db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
           await client.query(
             `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
           );
         }
+        db.sql_log(query, parameters || []);
         const qres = await client.query(query, parameters || []);
-
+        db.sql_log("ROLLBACK;");
         await client.query(`ROLLBACK;`);
         return qres;
       },

@@ -61,17 +61,23 @@ module.exports = {
         });
 
       const client = is_sqlite ? db : await db.getClient();
+      db.sql_log("BEGIN;");
       await client.query(`BEGIN;`);
       if (!is_sqlite) {
+        db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
         await client.query(
           `SET LOCAL search_path TO "${db.getTenantSchema()}";`
         );
-        if (read_only)
+        if (read_only) {
+          db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
           await client.query(
             `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
           );
+        }
       }
+      db.sql_log(sql, phValues);
       const qres = await client.query(sql, phValues);
+      db.sql_log("COMMIT;");
 
       await client.query(`COMMIT;`);
 
