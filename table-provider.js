@@ -443,6 +443,8 @@ const countRows = async (cfg, where, opts) => {
   });
 
   const qctx = {};
+  const ensure_no_final_semicolon = (s) =>
+    s.trim().endsWith(";") ? s.trim().slice(0, -1) : s;
 
   if (opts?.forUser) qctx.user = sqlEscapeObject(opts.forUser);
   else if (where?.forUser)
@@ -465,8 +467,14 @@ const countRows = async (cfg, where, opts) => {
   }
 
   //console.trace({ sqlQ, phValues, opts });
-  db.sql_log(`select count(*) from (${sqlQ})`, phValues);
-  const qres = await client.query(`select count(*) from (${sqlQ})`, phValues);
+  db.sql_log(
+    `select count(*) from (${ensure_no_final_semicolon(sqlQ)})`,
+    phValues
+  );
+  const qres = await client.query(
+    `select count(*) from (${ensure_no_final_semicolon(sqlQ)})`,
+    phValues
+  );
   qres.query = sqlQ;
   db.sql_log("ROLLBACK;");
   await client.query(`ROLLBACK;`);
