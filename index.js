@@ -64,7 +64,7 @@ const configuration_workflow = () =>
                 input_type: "section_header",
                 label: " ",
                 sublabel: div(
-                  "Use handlebars to access query result in the <code>rows</code> variable. Example: <code>{{#each rows}}&lt;h1&gt;{{this.name}}&lt;/h1&gt;{{/each}}</code>"
+                  "Use handlebars to access query result in the <code>rows</code> variable. Example: <code>{{#each rows}}&lt;h1&gt;{{this.name}}&lt;/h1&gt;{{/each}}</code>",
                 ),
                 showIf: { row_count: "Many" },
               },
@@ -82,7 +82,7 @@ const run = async (
   viewname,
   { sql, output_type, state_parameters, html_code },
   state,
-  { req }
+  { req },
 ) => {
   const is_sqlite = db.isSQLite;
 
@@ -104,7 +104,7 @@ const run = async (
     if (!is_sqlite) {
       await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
       await client.query(
-        `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+        `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`,
       );
     }
     qres = await client.query(sql, phValues);
@@ -123,7 +123,7 @@ const run = async (
         html_code,
         { rows: qres.rows },
         req.user,
-        `HTML code interpolation in view ${viewname}`
+        `HTML code interpolation in view ${viewname}`,
       );
     //return template();
 
@@ -133,7 +133,7 @@ const run = async (
     default: //Table
       return mkTable(
         qres.fields.map((field) => ({ label: field.name, key: field.name })),
-        qres.rows
+        qres.rows,
       );
   }
 };
@@ -157,17 +157,18 @@ module.exports = {
         if (!is_sqlite) {
           db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
           await client.query(
-            `SET LOCAL search_path TO "${db.getTenantSchema()}";`
+            `SET LOCAL search_path TO "${db.getTenantSchema()}";`,
           );
           db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
           await client.query(
-            `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`
+            `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`,
           );
         }
         db.sql_log(query, parameters || []);
         const qres = await client.query(query, parameters || []);
         db.sql_log("ROLLBACK;");
         await client.query(`ROLLBACK;`);
+        if (!is_sqlite) client.release();
         return qres;
       },
       isAsync: true,
