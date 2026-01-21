@@ -1,6 +1,6 @@
 {
   "name": "@saltcorn/sql",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Actions and views based on SQL",
   "main": "index.js",
   "dependencies": {
