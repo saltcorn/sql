@@ -106,7 +106,17 @@ describe("sql table provider", () => {
     const table = Table.findOne("sqlusers");
     const nus = await table.countRows({});
     expect(nus).toBe(3);
-    const nadmin = await table.countRows({role_id:1});
+    const nadmin = await table.countRows({ role_id: 1 });
     expect(nadmin).toBe(1);
+  });
+  it("gets rows from table", async () => {
+    const table = Table.findOne("sqlusers");
+    const us = await table.getRows({});
+    expect(us.length).toBe(3);
+    const admins = await table.getRows({ role_id: 1 });
+    expect(admins.length).toBe(1);
+    expect(admins[0].email).toBe("admin@foo.com")
+    const admin = await table.getRow({ role_id: 1 });
+    expect(admin.email).toBe("admin@foo.com")
   });
 });
