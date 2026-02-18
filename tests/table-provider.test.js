@@ -18,7 +18,7 @@ beforeAll(async () => {
 // run with:
 //  saltcorn dev:plugin-test -d ~/sql/
 
-jest.setTimeout(30000);
+//jest.setTimeout(30000);
 
 describe("sql table provider", () => {
   it("creates table", async () => {
@@ -96,15 +96,17 @@ describe("sql table provider", () => {
             label: "last mobile login",
           },
         ],
-        ignore_where: true,
+        //ignore_where: true,
       },
       ownership_formula: null,
     });
     await getState().refresh_tables(false);
   });
-  it("queries table", async () => {
+  it("counts table", async () => {
     const table = Table.findOne("sqlusers");
     const nus = await table.countRows({});
-    expect(+nus).toBe(3);
+    expect(nus).toBe(3);
+    const nadmin = await table.countRows({role_id:1});
+    expect(nadmin).toBe(1);
   });
 });

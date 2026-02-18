@@ -480,7 +480,7 @@ const countRows = async (cfg, where, opts) => {
   await client.query(`ROLLBACK;`);
 
   if (!is_sqlite) client.release(true);
-  return qres.rows[0].count;
+  return +qres.rows[0].count;
 };
 
 module.exports = {
