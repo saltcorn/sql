@@ -10,6 +10,12 @@
     "node-sql-parser": "5.3.10",
     "sqlstring": "^2.3.3"
   },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "scripts": {
+    "test": "jest tests --runInBand"
+  },
   "author": "Tom Nielsen",
   "license": "MIT",
   "eslintConfig": {
@@ -19,7 +25,8 @@
     },
     "env": {
       "node": true,
-      "es6": true
+      "es6": true,
+      "jest/globals": true
     },
     "rules": {
       "no-unused-vars": "off",
