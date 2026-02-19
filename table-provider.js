@@ -12,9 +12,23 @@ const { mkTable } = require("@saltcorn/markup");
 const { pre, code } = require("@saltcorn/markup/tags");
 const parser = new Parser();
 const _ = require("underscore");
+const { features } = require("@saltcorn/data/db/state");
+
+const on_create = async (table) => {
+  if (table?.provider_cfg?.sql_view) {
+    await db.query(
+      `CREATE OR REPLACE VIEW "${db.sqlsanitize(table.name)}" AS ${table?.provider_cfg?.sql}`,
+    );
+  }
+};
 
 const configuration_workflow = (req) =>
   new Workflow({
+    onDone: async (ctx) => {
+      const table = Table.findOne(ctx.table_id);
+      await on_create(table);
+      return ctx;
+    },
     steps: [
       {
         name: "query",
@@ -46,12 +60,24 @@ const configuration_workflow = (req) =>
                   }
                 },
               },
+              ...(features.table_create_callback
+                ? [
+                    {
+                      label: "Create SQL VIEW",
+                      type: "Bool",
+                      name: "sql_view",
+                    },
+                  ]
+                : []),
               {
                 label: "Ignore where/order",
                 sublabel:
                   "Always use this SQL directly without attempting to modify it",
                 type: "Bool",
                 name: "ignore_where",
+                showIf: features.table_create_callback
+                  ? { sql_view: false }
+                  : undefined,
               },
             ],
           });
@@ -487,15 +513,38 @@ module.exports = {
   "SQL query": {
     configuration_workflow,
     fields: (cfg) => cfg?.columns || [],
-    get_table: (cfg) => {
+    on_create,
+    get_table: (cfg, table) => {
+      let syntheticTable;
+      if (cfg.sql_view && table)
+        syntheticTable = new Table({
+          ...table,
+          provider_name: undefined,
+          provider_cfg: undefined,
+        });
       return {
+        disableFiltering: true,
         getRows: async (where, opts) => {
+          if (syntheticTable) return await syntheticTable.getRows(where, opts);
           const qres = await runQuery(cfg, where || {}, opts || {});
           return qres.rows;
         },
         countRows: async (where, opts) => {
+          if (syntheticTable)
+            return await syntheticTable.countRows(where, opts);
+
           return await countRows(cfg, where || {}, opts || {});
         },
+        ...(syntheticTable
+          ? {
+              distinctValues: async (fldNm, opts) => {
+                return await syntheticTable.distinctValues(fldNm, opts);
+              },
+              getJoinedRows: async (opts) => {
+                return await syntheticTable.getJoinedRows(opts);
+              },
+            }
+          : {}),
       };
     },
   },

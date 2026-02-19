@@ -20,6 +20,7 @@ const {
 } = require("@saltcorn/markup/tags");
 const { mkTable } = require("@saltcorn/markup");
 const { readState } = require("@saltcorn/data/plugin-helper");
+const { features } = require("@saltcorn/data/db/state");
 
 const _ = require("underscore");
 
@@ -178,6 +179,15 @@ module.exports = {
         { name: "parameters", type: "JSON", tstype: "any[]" },
       ],
     },
+  },
+  async onLoad() {
+    if (features.table_create_callback) return;
+
+    //create view if not created by callback
+    const tables = await Table.find({ provider_name: "SQL query" });
+    for (const table of tables) {
+      await require("./table-provider.js")["SQL query"].on_create(table);
+    }
   },
   viewtemplates: [
     {

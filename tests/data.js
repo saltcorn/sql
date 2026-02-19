@@ -77,4 +77,9 @@ const sqlusers = {
   ownership_formula: null,
 };
 
-module.exports = { sqlusers };
+const sqlusers_view = {
+  ...sqlusers,
+  provider_cfg: { ...sqlusers.provider_cfg, sql_view: true },
+};
+
+module.exports = { sqlusers, sqlusers_view };

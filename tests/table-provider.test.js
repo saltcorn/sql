@@ -5,6 +5,7 @@ const Plugin = require("@saltcorn/data/models/plugin");
 
 const { mockReqRes } = require("@saltcorn/data/tests/mocks");
 const { afterAll, beforeAll, describe, it, expect } = require("@jest/globals");
+const db = require("@saltcorn/data/db");
 
 afterAll(require("@saltcorn/data/db").close);
 beforeAll(async () => {
@@ -13,6 +14,7 @@ beforeAll(async () => {
 
   getState().registerPlugin("base", require("@saltcorn/data/base-plugin"));
   getState().registerPlugin("@saltcorn/sql", require(".."));
+  //db.set_sql_logging(true);
 });
 
 // run with:
@@ -52,5 +54,54 @@ describe("sql table provider", () => {
     expect(admins[0].email).toBe("admin@foo.com");
     const admin = await table.getRow({ role_id: 1 });
     expect(admin.email).toBe("admin@foo.com");
+  });
+});
+describe("view-based sql table provider", () => {
+  it("creates table", async () => {
+    await Table.create("sqlusersv", require("./data").sqlusers_view);
+    await getState().refresh_tables(false);
+  });
+  it("counts table", async () => {
+    const table = Table.findOne("sqlusersv");
+    const nus = await table.countRows({});
+    expect(nus).toBe(3);
+    const nadmin = await table.countRows({ role_id: 1 });
+    expect(nadmin).toBe(1);
+  });
+  it("gets rows from table", async () => {
+    const table = Table.findOne("sqlusersv");
+    const us = await table.getRows({}, { orderBy: "id" });
+    expect(us.length).toBe(3);
+    expect(us[0].id).toBe(1);
+
+    const twous = await table.getRows({}, { limit: 2 });
+    expect(twous.length).toBe(2);
+    const twous1 = await table.getRows(
+      {},
+      { limit: 2, orderBy: "id", orderDesc: true },
+    );
+    expect(twous1.length).toBe(2);
+    expect(twous1[0].id).toBe(3);
+
+    const admins = await table.getRows({ role_id: 1 });
+    expect(admins.length).toBe(1);
+    expect(admins[0].email).toBe("admin@foo.com");
+    const admin = await table.getRow({ role_id: 1 });
+    expect(admin.email).toBe("admin@foo.com");
+  });
+  it("has distinct values", async () => {
+    const table = Table.findOne("sqlusersv");
+    const vs = await table.distinctValues("role_id");
+    expect(vs.length).toBe(3);
+    expect(vs).toContain(80);
+  });
+  it("gets joined values", async () => {
+    const table = Table.findOne("sqlusersv");
+    const vs = await table.getJoinedRows({});
+    expect(vs.length).toBe(3);
+    const vs2 = await table.getJoinedRows({ limit: 2 });
+    expect(vs2.length).toBe(2);
+    const admins = await table.getJoinedRows({ where: { role_id: 1 } });
+    expect(admins.length).toBe(1);
   });
 });
