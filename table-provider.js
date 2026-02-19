@@ -66,10 +66,10 @@ const configuration_workflow = (req) =>
               label: field.name,
               key: field.name,
             })),
-            qres.rows?.slice?.(0, 5)
+            qres.rows?.slice?.(0, 5),
           );
           const pkey_options = getState().type_names.filter(
-            (tnm) => getState().types[tnm]?.primaryKey
+            (tnm) => getState().types[tnm]?.primaryKey,
           );
           const tables = await Table.find({});
 
@@ -197,7 +197,7 @@ const getSqlQuery = (sql, cfg, where, opts) => {
               as: null,
             }
           : (ast[0].columns || []).find(
-              (c) => k === c.as || (!c.as && k === c.expr?.column)
+              (c) => k === c.as || (!c.as && k === c.expr?.column),
             );
       const sqlExprCol =
         ast[0].columns == "*"
@@ -210,22 +210,22 @@ const getSqlQuery = (sql, cfg, where, opts) => {
       const sqlAggrCol = (ast[0].columns || []).find(
         (c) =>
           c.expr?.type === "aggr_func" &&
-          c.expr?.name?.toUpperCase() === k.toUpperCase()
+          c.expr?.name?.toUpperCase() === k.toUpperCase(),
       );
 
       let left = sqlExprCol
         ? { ...sqlExprCol.expr, as: null }
         : sqlAggrCol
-        ? { ...sqlAggrCol.expr }
-        : {
-            type: "column_ref",
-            table: sqlCol?.expr?.table,
-            column: sqlCol?.expr?.column || db.sqlsanitize(k),
-          };
+          ? { ...sqlAggrCol.expr }
+          : {
+              type: "column_ref",
+              table: sqlCol?.expr?.table,
+              column: sqlCol?.expr?.column || db.sqlsanitize(k),
+            };
       //console.log({ k, sqlCol, sqlExprCol });
       if (!sqlCol) {
         const starCol = (ast[0].columns || []).find(
-          (c) => c.type === "star_ref"
+          (c) => c.type === "star_ref",
         );
         if (starCol)
           left = {
@@ -241,14 +241,14 @@ const getSqlQuery = (sql, cfg, where, opts) => {
           wherek?.ilike && !sqlAggrCol
             ? "ILIKE"
             : wherek?.gt && !sqlAggrCol
-            ? wherek.equal
-              ? ">="
-              : ">"
-            : wherek?.lt && !sqlAggrCol
-            ? wherek.equal
-              ? "<="
-              : "<"
-            : "=",
+              ? wherek.equal
+                ? ">="
+                : ">"
+              : wherek?.lt && !sqlAggrCol
+                ? wherek.equal
+                  ? "<="
+                  : "<"
+                : "=",
         left,
         right:
           wherek?.ilike && !sqlAggrCol
@@ -469,11 +469,11 @@ const countRows = async (cfg, where, opts) => {
   //console.trace({ sqlQ, phValues, opts });
   db.sql_log(
     `select count(*) from (${ensure_no_final_semicolon(sqlQ)})`,
-    phValues
+    phValues,
   );
   const qres = await client.query(
     `select count(*) from (${ensure_no_final_semicolon(sqlQ)})`,
-    phValues
+    phValues,
   );
   qres.query = sqlQ;
   db.sql_log("ROLLBACK;");
@@ -490,11 +490,11 @@ module.exports = {
     get_table: (cfg) => {
       return {
         getRows: async (where, opts) => {
-          const qres = await runQuery(cfg, where, opts);
+          const qres = await runQuery(cfg, where || {}, opts || {});
           return qres.rows;
         },
         countRows: async (where, opts) => {
-          return await countRows(cfg, where, opts);
+          return await countRows(cfg, where || {}, opts || {});
         },
       };
     },
