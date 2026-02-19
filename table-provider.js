@@ -26,7 +26,11 @@ const configuration_workflow = (req) =>
   new Workflow({
     onDone: async (ctx) => {
       const table = Table.findOne(ctx.table_id);
-      await on_create(table);
+      if (table && ctx?.sql_view) {
+        await db.query(
+          `CREATE OR REPLACE VIEW "${db.sqlsanitize(table.name)}" AS ${ctx.sql}`,
+        );
+      }
       return ctx;
     },
     steps: [
@@ -516,7 +520,7 @@ module.exports = {
     on_create,
     get_table: (cfg, table) => {
       let syntheticTable;
-      if (cfg.sql_view && table)
+      if (cfg?.sql_view && table)
         syntheticTable = new Table({
           ...table,
           provider_name: undefined,
