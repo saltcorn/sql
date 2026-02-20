@@ -21,8 +21,7 @@ const {
 const { mkTable } = require("@saltcorn/markup");
 const { readState } = require("@saltcorn/data/plugin-helper");
 const { features } = require("@saltcorn/data/db/state");
-
-const _ = require("underscore");
+const Handlebars = require("handlebars");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -52,7 +51,9 @@ const configuration_workflow = () =>
                 label: "Output type",
                 type: "String",
                 required: true,
-                attributes: { options: ["Table", "JSON", "HTML"] },
+                attributes: {
+                  options: ["Table", "JSON", "HTML", "HTML with handlebars"],
+                },
               },
               {
                 name: "html_code",
@@ -60,14 +61,17 @@ const configuration_workflow = () =>
                 input_type: "code",
                 attributes: { mode: "text/html" },
                 showIf: { output_type: "HTML" },
+                sublabel:
+                  "Use interpolations (<code>{{ }}</code>) to access query result in he <code>rows</code> variable. Example: <code>&lt;script&gt;const rows = {{ JSON.stringify(rows) }}&lt;/script&gt;</code>",
               },
               {
-                input_type: "section_header",
-                label: " ",
-                sublabel: div(
+                name: "html_code",
+                label: "HTML Code",
+                input_type: "code",
+                attributes: { mode: "text/html" },
+                showIf: { output_type: "HTML with handlebars" },
+                sublabel:
                   "Use handlebars to access query result in the <code>rows</code> variable. Example: <code>{{#each rows}}&lt;h1&gt;{{this.name}}&lt;/h1&gt;{{/each}}</code>",
-                ),
-                showIf: { row_count: "Many" },
               },
             ],
           });
@@ -115,11 +119,6 @@ const run = async (
   }
   switch (output_type) {
     case "HTML":
-      /*const template = _.template(html_code || "", {
-        evaluate: /\{\{#(.+?)\}\}/g,
-        interpolate: /\{\{([^#].+?)\}\}/g,
-      });
-      console.log("template", viewname, state, html_code);*/
       return interpolate(
         html_code,
         { rows: qres.rows },
@@ -127,7 +126,9 @@ const run = async (
         `HTML code interpolation in view ${viewname}`,
       );
     //return template();
-
+    case "HTML with handlebars":
+      const template = Handlebars.compile(html_code || "");
+      return template({ rows: qres.rows });
     case "JSON":
       return `<pre>${JSON.stringify(qres.rows, null, 2)}</pre>`;
 
@@ -179,7 +180,7 @@ module.exports = {
         { name: "parameters", type: "JSON", tstype: "any[]" },
       ],
     },
-  }, 
+  },
   viewtemplates: [
     {
       name: "SQLView",

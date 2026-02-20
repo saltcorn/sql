@@ -7,6 +7,7 @@
     "@saltcorn/markup": "^0.6.0",
     "@saltcorn/data": "^0.6.0",
     "underscore": "1.13.6",
+    "handlebars": "4.7.7",
     "node-sql-parser": "5.3.10",
     "sqlstring": "^2.3.3"
   },

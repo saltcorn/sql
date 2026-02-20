@@ -58,4 +58,24 @@ describe("sql view", () => {
       '<script>const boooks = [{"id":2,"author":"Leo Tolstoy","pages":728}]<script>',
     );
   });
+   it("runs with handlebars", async () => {
+    const view = new View({
+      name: "BookSQLView",
+      description: "",
+      viewtemplate: "SQLView",
+      configuration: {
+        sql: "select id, author, pages from books order by id;",
+        html_code: `{{#each rows}}<h1>{{this.author}}</h1>{{/each}}`,
+        output_type: "HTML with handlebars",
+        state_parameters: "",
+      },
+      min_role: 1,
+      table: null,
+    });
+    const result = await view.run({}, mockReqRes);
+
+    expect(result).toBe(
+      '<h1>Herman Melville</h1><h1>Leo Tolstoy</h1>',
+    );
+  });
 });
