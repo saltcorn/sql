@@ -547,6 +547,9 @@ module.exports = {
               getJoinedRows: async (opts) => {
                 return await syntheticTable.getJoinedRows(opts);
               },
+              aggregationQuery: async (aggs, opts) => {
+                return await syntheticTable.aggregationQuery(aggs, opts);
+              },
             }
           : {}),
       };
