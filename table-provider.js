@@ -70,6 +70,7 @@ const configuration_workflow = (req) =>
                       label: "Create SQL VIEW",
                       type: "Bool",
                       name: "sql_view",
+                      default: true
                     },
                   ]
                 : []),
