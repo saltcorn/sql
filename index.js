@@ -186,6 +186,29 @@ module.exports = {
       name: "SQLView",
       display_state_form: false,
       tableless: true,
+      copilot_generate_view_prompt: async ({ table }) => {
+        const tableLines = [];
+        const tables = await Table.find({});
+        tables.forEach((table) => {
+          const fieldLines = table.fields.map(
+            (f) =>
+              `  * ${f.name} with type: ${f.pretty_type.replace(
+                "Key to",
+                "ForeignKey referencing",
+              )}.${f.description ? ` ${f.description}` : ""}`,
+          );
+          tableLines.push(
+            `${table.name}${
+              table.description ? `: ${table.description}.` : "."
+            } Contains the following fields:\n${fieldLines.join("\n")}`,
+          );
+        });
+        return `The database already contains the following tables: 
+
+    ${tableLines.join("\n\n")}
+
+    You can reference these tables when generating SQL`;
+      },
       get_state_fields,
       configuration_workflow,
       run,
