@@ -175,6 +175,8 @@ module.exports = {
       },
       isAsync: true,
       description: "Run an SQL query",
+      returns: "JSON",
+      tsreturns: "Promise<{rows: Array<{ [key: string]: unknown }>}>",
       arguments: [
         { name: "sql_query", type: "String", required: true },
         { name: "parameters", type: "JSON", tstype: "any[]" },
