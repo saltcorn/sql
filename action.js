@@ -1,9 +1,15 @@
 const db = require("@saltcorn/data/db");
 const { eval_expression } = require("@saltcorn/data/models/expression");
+const { getState } = require("@saltcorn/data/db/state");
 
 module.exports = {
   run_sql_code: {
     namespace: "Code",
+    copilot_generate_trigger_prompt: async () => {
+      const tables = (getState().tables || []).map((t) => t.name);
+      if (!tables.length) return "";
+      return `The following database tables exist: ${tables.join(", ")}.`;
+    },
     configFields: ({ mode }) => [
       {
         name: "sql",
