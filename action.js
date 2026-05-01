@@ -1,14 +1,32 @@
 const db = require("@saltcorn/data/db");
 const { eval_expression } = require("@saltcorn/data/models/expression");
-const { getState } = require("@saltcorn/data/db/state");
+const Table = require("@saltcorn/data/models/table");
 
 module.exports = {
   run_sql_code: {
     namespace: "Code",
     copilot_generate_trigger_prompt: async () => {
-      const tables = (getState().tables || []).map((t) => t.name);
+      const tables = (await Table.find({})).filter(
+        (t) => !t.external && !t.provider_name,
+      );
       if (!tables.length) return "";
-      return `The following database tables exist: ${tables.join(", ")}.`;
+      const schemaPrefix = db.getTenantSchemaPrefix();
+      const ddl = tables
+        .map(
+          (t) =>
+            `CREATE TABLE "${t.name}" (${t.description ? `\n  /* ${t.description} */` : ""}\n${t.fields
+              .map(
+                (f) =>
+                  `  "${f.name}" ${
+                    f.primary_key && f.type?.name === "Integer"
+                      ? "SERIAL PRIMARY KEY"
+                      : f.sql_type.replace(schemaPrefix, "")
+                  }`,
+              )
+              .join(",\n")}\n)`,
+        )
+        .join(";\n\n");
+      return `The database has the following tables in PostgreSQL:\n\n${ddl}`;
     },
     configFields: ({ mode }) => [
       {
