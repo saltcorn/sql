@@ -76,7 +76,7 @@ const activityScript = script(`
      })
      const linkout = '<a class="btn btn-primary" href="/view/SQL%20Terminal">Done</a>'
      const current_table = rows.length ? "<h5>Active queries</h5>"+arrayToHTMLTable(rows) : "<h5>Active queries</h5><p>No active queries</p>"
-     const past_table = past_queries.length ? "<h5>Previous queries</h5>"+arrayToHTMLTable(past_queries):""
+     const past_table = past_queries.length ? "<h5>Previous queries</h5>"+arrayToHTMLTable(past_queries)+"<i>Runtime is largest observed and not indicative of total duration</i><br>":""
      $('[data-sc-embed-viewname="SQL Terminal"]').html(current_table+past_table+linkout)
      setTimeout(sql_terminal_show_activity, 400)
   }
