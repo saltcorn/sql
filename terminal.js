@@ -80,8 +80,7 @@ const activityScript = script(`
      $('[data-sc-embed-viewname="SQL Terminal"]').html(current_table+past_table+linkout)
      setTimeout(sql_terminal_show_activity, 400)
   }
-  `,
-);
+  `);
 
 const run = async (table_id, viewname, cfg, state, { res, req }) => {
   const form = await getForm(viewname);
@@ -118,7 +117,14 @@ const runPost = async (
       qres.rows,
     );
   } catch (error) {
+    if (client) {
+      try {
+        await client.query(`ROLLBACK;`);
+      } catch (_) {}
+    }
     sqlResult = error.message;
+  } finally {
+    if (client && !is_sqlite) client.release(true);
   }
 
   res.sendWrap("SQL Terminal", [

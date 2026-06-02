@@ -70,7 +70,7 @@ const configuration_workflow = (req) =>
                       label: "Create SQL VIEW",
                       type: "Bool",
                       name: "sql_view",
-                      default: true
+                      default: true,
                     },
                   ]
                 : []),
@@ -448,22 +448,27 @@ const runQuery = async (cfg, where, opts) => {
   const { sqlQ, phValues } = getSqlQuery(sql, cfg, where, opts);
 
   const client = is_sqlite ? db : await db.getClient();
-  db.sql_log("BEGIN;");
-  await client.query(`BEGIN;`);
-  if (!is_sqlite) {
-    db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
-    await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
-    db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
-    await client.query(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
-  }
-  db.sql_log(sqlQ, phValues);
-  const qres = await client.query(sqlQ, phValues);
-  qres.query = sqlQ;
-  db.sql_log("ROLLBACK;");
-  await client.query(`ROLLBACK;`);
+  try {
+    db.sql_log("BEGIN;");
+    await client.query(`BEGIN;`);
+    if (!is_sqlite) {
+      db.sql_log(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+      await client.query(`SET LOCAL search_path TO "${db.getTenantSchema()}";`);
+      db.sql_log(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`);
+      await client.query(
+        `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`,
+      );
+    }
+    db.sql_log(sqlQ, phValues);
+    const qres = await client.query(sqlQ, phValues);
+    qres.query = sqlQ;
+    db.sql_log("ROLLBACK;");
+    await client.query(`ROLLBACK;`);
 
-  if (!is_sqlite) client.release(true);
-  return qres;
+    return qres;
+  } finally {
+    if (!is_sqlite) client.release(true);
+  }
 };
 
 const countRows = async (cfg, where, opts) => {
